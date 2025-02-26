@@ -1477,26 +1477,42 @@ def main_app():
             'REGOLITH_SYSTEM_TEMPLATE environment variable to the path of the '
             'directory containing the system templates.')
     )
-    parser.add_argument('template_name')
+    # General arguments
     parser.add_argument(
         '-v', '--version', action='version', version=__version__)
     parser.add_argument(
-        '--allow-non-empty', action='store_true',
-        help='Allows running the application in non-empty directories.')
-    parser.add_argument(
         '--systems-path', default=None, type=Path,
         help='The path to the systems directory.')
-    parser.add_argument(
+
+    subparsers = parser.add_subparsers(dest='command')
+
+    # List subcommand
+    list_parser = subparsers.add_parser(
+        'list', help='List all available templates.'
+    )
+    list_parser.set_defaults(command='list')
+
+    # Run subcommand
+    run_parser = subparsers.add_parser(
+        'run', help='Run the system template')
+    run_parser.set_defaults(command='run')
+
+    run_parser.add_argument('template_name')
+    run_parser.add_argument(
+        '--allow-non-empty', action='store_true',
+        help='Allows running the application in non-empty directories.')
+    run_parser.add_argument(
         '--scope-path', default=None, type=Path,
         help='The path to the global scope.json file.')
-    parser.add_argument(
+    run_parser.add_argument(
         '--scope', default=None,
         help=(
             'The global scope object as a JSON string (--scope-path appends '
             'on top of this).')
     )
     args = parser.parse_args()
-    
+
+    # Get the path to the templates folder
     if args.systems_path is None:
         if 'REGOLITH_SYSTEM_TEMPLATE' not in os.environ:
             print_red("REGOLITH_SYSTEM_TEMPLATE environment variable not set.")
@@ -1505,6 +1521,20 @@ def main_app():
     else:
         systems_path: Path = args.systems_path
 
+    # Handle the list command
+    if args.command == 'list':
+        systems: list[str] = []
+        for template in systems_path.rglob("_map.py"):
+            if (template.parent / "_scope.json").exists():
+                system_path = template.parent.relative_to(systems_path)
+                systems.append(system_path.as_posix())
+        if len(systems) == 0:
+            print_red("No templates found.")
+        else:
+            print("Available templates:")
+            for system in sorted(systems):
+                print(f"- {system}")
+        sys.exit(0)
 
     system_path: Path = systems_path / args.template_name
     if not system_path.exists():
