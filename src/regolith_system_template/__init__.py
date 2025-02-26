@@ -21,6 +21,7 @@ import io
 import os
 import string
 import re
+import tempfile
 
 VERSION = (1, 0, 0)
 __version__ = '.'.join([str(x) for x in VERSION])
@@ -1535,12 +1536,28 @@ def main_app():
             for system in sorted(systems):
                 print(f"- {system}")
         sys.exit(0)
+    else:  # 'run' command
+        # Check if system exists before we make Temp dir and try to copy
+        # anything
+        system_path: Path = systems_path / args.template_name
+        if not system_path.exists():
+            print_red(f"System path doesn't exist: {system_path}")
+            sys.exit(1)
 
+        with tempfile.TemporaryDirectory(
+                prefix='system-template-regolith-') as tmp_dir:
+            # Not the most effiecient, but some ~badly written~ systems might
+            # have dependencies on other systems in the systems folder. So it's
+            # just easier to copy everything.
+            print(f"Copying systems to temporary directory: {tmp_dir}")
+            shutil.copytree(systems_path, tmp_dir, dirs_exist_ok=True)
+            main_app_run(args, Path(tmp_dir))
+
+def main_app_run(args: argparse.Namespace, systems_path: Path):
     system_path: Path = systems_path / args.template_name
-    if not system_path.exists():
+    if not system_path.exists():  # Checked earlier, should never happen
         print_red(f"System path doesn't exist: {system_path}")
         sys.exit(1)
-
     # Check if group_path exists.
     parts = system_path.relative_to(systems_path).parts
     group_path: Path | None = None
