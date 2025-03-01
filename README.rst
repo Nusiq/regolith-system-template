@@ -26,6 +26,7 @@ You can verify that :code:`system-template` is set up correctly by running the f
 This will list all available templates in the :code:`REGOLITH_SYSTEM_TEMPLATE` directory.
 
 To use a template, run:
+
 .. code-block:: bash
 
    system-template run <template-name>
