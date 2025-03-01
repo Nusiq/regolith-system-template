@@ -23,7 +23,7 @@ import string
 import re
 import tempfile
 
-VERSION = (1, 0, 0)
+VERSION = (1, 1, 0)
 __version__ = '.'.join([str(x) for x in VERSION])
 
 # Overwrite the functions path of the regolith_subfunctions to be an absolute
@@ -1529,6 +1529,7 @@ def main_app():
             if (template.parent / "_scope.json").exists():
                 system_path = template.parent.relative_to(systems_path)
                 systems.append(system_path.as_posix())
+        print(f"Systems path: {systems_path}")
         if len(systems) == 0:
             print_red("No templates found.")
         else:

@@ -1,7 +1,7 @@
 Regolith System Template
 ========================
 
-A Python package that powers the `System Template Regolith Filter <https://system-template-docs.readthedocs.io/en/stable/>`_ and provides a command line tool for creating projects based on the templates defined using the System Template syntax.
+A Python package that powers the `System Template Regolith Filter <https://system-template-docs.readthedocs.io/en/stable/>`_ and provides a command-line tool for creating projects based on templates defined using the System Template syntax.
 
 Installation
 -------------
@@ -10,30 +10,36 @@ Installation
 
    pip install regolith-system-template
 
-
-Command Line Tool
+Command-Line Tool
 -----------------
 
-You can access the commandline tool by running following commoand:
+This package adds the :code:`system-template` command-line tool.
+
+Before using the tool, set the :code:`REGOLITH_SYSTEM_TEMPLATE` environment variable to specify the directory where your templates are stored. Templates should be organized into subfolders within this directory, using the same format as the Regolith filter.
+
+You can verify that :code:`system-template` is set up correctly by running the following command:
 
 .. code-block:: bash
 
-   system-template <template-name>
+   system-template list
+
+This will list all available templates in the :code:`REGOLITH_SYSTEM_TEMPLATE` directory.
+
+To use a template, run:
+.. code-block:: bash
+
+   system-template run <template-name>
 
 This will create a new system based on the template named :code:`<template-name>`.
 
-Before using the command line tool, you should set the :code:`REGOLITH_SYSTEM_TEMPLATE` environment variable to select the path where you can store your systems. The systems should be in subfolders of that directory stored in the same format as the one used by the Regolith filter.
+Flags
+-----
 
-Alternatively you can use :code:`--systems-path` flag to specify the path in the command.
+- :code:`--systems-path` - Instead of using the :code:`REGOLITH_SYSTEM_TEMPLATE` environment variable, specify the path to the template directory with this flag.
+- :code:`--scope-path` - Provide the path to a file containing the scope for template execution. This is useful when executing a template within a Regolith project. In that case, use this flag to specify the project's global Regolith scope.
+- :code:`--scope` - Define the scope in JSON format. When using System Template as a Regolith filter, it uses the scope defined in :code:`config.json`. This flag allows you to provide a replacement for that scope when running the command-line tool.
+- :code:`--allow-non-empty` - By default, the tool does not run in non-empty directories. Use this flag to override this behavior.
 
-The :code:`--scope-path` lets you specify the path to the file that contains the scope for the execution of the template. This is useful if you want to execute a template from a Regolith project. In that case, use this to specify the path to the project's global Regolith scope.
+For additional help, use the :code:`--help` flag.
 
-The :code:`--scope` variable lets you specify an additional scope in JSON format. This takes place of the :code:`scope` configuration option in :code:`config.json` of the Regolith project.
-
-By default the app doesn't work in non-empty directories. It can be changed using the 
-:code:`--allow-non-empty` flag.
-
-For more help use the :code:`--help` flag.
-
-Unlike the Regolith filter, the command line tool doesn't limit you to exporing only to :code:`RP/`, :code:`BP/` and :code:`data/` directories.
-
+Unlike the Regolith filter, the command-line tool is not restricted to exporting only to the :code:`RP/`, :code:`BP/`, and :code:`data/` directories.
