@@ -23,7 +23,7 @@ import string
 import re
 import tempfile
 
-VERSION = (1, 2, 0)
+VERSION = (1, 2, 1)
 __version__ = '.'.join([str(x) for x in VERSION])
 
 # Overwrite the functions path of the regolith_subfunctions to be an absolute
