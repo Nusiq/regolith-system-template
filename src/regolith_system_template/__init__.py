@@ -23,7 +23,7 @@ import string
 import re
 import tempfile
 
-VERSION = (1, 1, 0)
+VERSION = (1, 2, 0)
 __version__ = '.'.join([str(x) for x in VERSION])
 
 # Overwrite the functions path of the regolith_subfunctions to be an absolute
@@ -269,6 +269,18 @@ class AutoMappingProvider:
             "Failed to find an AUTO mapping export target for "
             f"{source.as_posix()}")
 
+
+def get_text_with_replacements(
+        source_text: str, replacements: dict[str, str] | None) -> str:
+    '''
+    Returns the source text with the replacements applied. The replacements
+    are a dictionary where the key is the string to be replaced and the value
+    is the string that will replace it.
+    '''
+    if replacements is not None:
+        for key, value in replacements.items():
+            source_text = source_text.replace(key, value)
+    return source_text
 
 def walk_system_paths(systems: List[str], systems_path: Path) -> Iterable[tuple[Path, Optional[Path]]]:
     '''
@@ -966,9 +978,7 @@ class SystemItem:
             else:
                 # Local replacements have priority
                 replacements = self.parent.global_replacements | replacements
-        if replacements is not None:
-            for key, value in replacements.items():
-                source_text = source_text.replace(key, value)
+        source_text = get_text_with_replacements(source_text, replacements)
         if self.parent.namespace_settings is not None:
             source_text = self.parent.namespace_settings.replace_namespaces(
                 source_text)
@@ -1263,9 +1273,12 @@ class NamespaceSettings:
 def get_auto_map(
         scope: Dict[str, Any],
         namespace_settings: NamespaceSettings | None,
-        auto_map_path: Path) -> AutoMappingProvider:
+        auto_map_path: Path,
+        global_replacements: dict[str, str] | None) -> AutoMappingProvider:
     try:
-        auto_map_data = load_jsonc(auto_map_path).data
+        auto_map_text = get_text_with_replacements(
+            auto_map_path.read_text(encoding='utf8'), global_replacements)
+        auto_map_data = json.loads(auto_map_text, cls=JSONCDecoder)
         if not isinstance(auto_map_data, dict):
             raise SystemTemplateException([
                 "The auto_map.json must be an object."])
@@ -1381,7 +1394,8 @@ def main_regolith():
             config_scope: dict[str, Any] = config.get('scope', {})
             scope = get_scope(config_scope, scope_path, systems_path)
             report = Report()
-            auto_map = get_auto_map(scope, namespace_settings, auto_map_path)
+            auto_map = get_auto_map(
+                scope, namespace_settings, auto_map_path, global_replacements)
             sorted_system_paths = sorted(
                 walk_system_paths(system_patterns, systems_path),
                 key=lambda sp: system_paths_sort_key(sp, prioritized_systems),
@@ -1402,7 +1416,8 @@ def main_regolith():
                 'scope_path', 'system_template/scope.json')
             config_scope: dict[str, Any] = config.get('scope', {})
             scope = get_scope(config_scope, scope_path, systems_path)
-            auto_map = get_auto_map(scope, namespace_settings, auto_map_path)
+            auto_map = get_auto_map(
+                scope, namespace_settings, auto_map_path, global_replacements)
             for system_path, group_path in walk_system_paths(
                     system_patterns, systems_path):
                 system = System(
@@ -1421,7 +1436,8 @@ def main_regolith():
                 'scope_path', 'system_template/scope.json')
             config_scope: dict[str, Any] = config.get('scope', {})
             scope = get_scope(config_scope, scope_path, systems_path)
-            auto_map = get_auto_map(scope, namespace_settings, auto_map_path)
+            auto_map = get_auto_map(
+                scope, namespace_settings, auto_map_path, global_replacements)
             for system_path, group_path in walk_system_paths(
                     system_patterns, systems_path):
                 system = System(
@@ -1511,6 +1527,12 @@ def main_app():
             'The global scope object as a JSON string (--scope-path appends '
             'on top of this).')
     )
+    run_parser.add_argument(
+        '--replacements', default=None,
+        help=(
+            'The global replacements object as a JSON string. This is used '
+            'to replace text in the files.')
+    )
     args = parser.parse_args()
 
     # Get the path to the templates folder
@@ -1590,6 +1612,21 @@ def main_app_run(args: argparse.Namespace, systems_path: Path):
     else:
         config_scope: dict[str, Any] = {}
 
+    if args.replacements is not None:
+        try:
+            global_replacements: dict[str, str] | None = json.loads(
+                args.replacements)
+        except Exception:
+            print_red("Failed to load the replacements data.")
+            sys.exit(1)
+        if not isinstance(global_replacements, dict) or not all(  # type: ignore
+                isinstance(k, str) for k in global_replacements.keys()):  # type: ignore
+            print_red(
+                "The replacements object must be an object with string keys.")
+            sys.exit(1)
+    else:
+        global_replacements = None
+
     if args.scope_path is not None:
         scope_path: Path = args.scope_path
     else:
@@ -1605,14 +1642,15 @@ def main_app_run(args: argparse.Namespace, systems_path: Path):
         auto_map = get_auto_map(
             scope=scope,
             namespace_settings=None,
-            auto_map_path=systems_path / 'auto_map.json')
+            auto_map_path=systems_path / 'auto_map.json',
+            global_replacements=global_replacements)
         system = System(
             scope=scope,
             system_path=system_path,
             group_path=group_path,
             auto_map=auto_map,
             namespace_settings=None,
-            global_replacements=None,
+            global_replacements=global_replacements,
             systems_path=systems_path,
             allowed_target_prefixes=None)
         print(f"Generating system: {sys.argv[1]}")

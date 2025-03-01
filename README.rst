@@ -40,6 +40,7 @@ Flags
 - :code:`--scope-path` - Provide the path to a file containing the scope for template execution. This is useful when executing a template within a Regolith project. In that case, use this flag to specify the project's global Regolith scope.
 - :code:`--scope` - Define the scope in JSON format. When using System Template as a Regolith filter, it uses the scope defined in :code:`config.json`. This flag allows you to provide a replacement for that scope when running the command-line tool.
 - :code:`--allow-non-empty` - By default, the tool does not run in non-empty directories. Use this flag to override this behavior.
+- :code:`--replacements` - Provide a JSON object with key-value pairs to replace text in the template files. This corresponds to the :code:`replacements` setting in :code:`config.json` when using System Template as a Regolith filter.
 
 For additional help, use the :code:`--help` flag.
 
