@@ -23,7 +23,7 @@ import string
 import re
 import tempfile
 
-VERSION = (1, 2, 1)
+VERSION = (1, 3, 0)
 __version__ = '.'.join([str(x) for x in VERSION])
 
 # Overwrite the functions path of the regolith_subfunctions to be an absolute
@@ -360,7 +360,11 @@ class System:
         scope_path = system_path / '_scope.json'
         if group_path is not None:
             try:
-                group_scope = load_jsonc(group_path / '_group_scope.json').data
+                group_scope = (
+                    group_path / '_group_scope.json').read_text(encoding='utf8')
+                group_scope = get_text_with_replacements(
+                    group_scope, global_replacements)
+                group_scope = json.loads(group_scope)
                 if not isinstance(group_scope, dict):
                     raise Exception("The _group_scope.json must be an object.")
                 scope = scope | group_scope
@@ -370,7 +374,10 @@ class System:
                     f"Path: {group_path.as_posix()}",
                     str(e)])
         try:
-            system_scope = load_jsonc(scope_path).data
+            system_scope = scope_path.read_text(encoding='utf8')
+            system_scope = get_text_with_replacements(
+                system_scope, global_replacements)
+            system_scope = json.loads(system_scope)
             if not isinstance(system_scope, dict):
                 raise Exception("The _scope.json must be an object.")
             self.scope: Dict[str, Any] = scope | system_scope
@@ -379,13 +386,13 @@ class System:
                 f"Failed to load the _scope.json file due to an error:",
                 f"Path: {scope_path.as_posix()}",
                 str(e)])
+        self.global_replacements = global_replacements
         self.system_path: Path = system_path
         self.group_path: Optional[Path] = group_path
         self.file_map: Any = self._init_file_map(
             system_path / '_map.py')
         self.auto_map: AutoMappingProvider = auto_map
         self.namespace_settings = namespace_settings
-        self.global_replacements = global_replacements
         self.systems_path = systems_path
         self.allowed_output_prefixes = allowed_target_prefixes
 
@@ -395,6 +402,8 @@ class System:
         '''
         try:
             file_map_text = file_map_path.read_text(encoding='utf8')
+            file_map_text = get_text_with_replacements(
+                file_map_text, self.global_replacements)
             with WdSwitch(self.system_path):
                 return eval(file_map_text, copy(self.scope))
         except Exception as e:
@@ -1307,7 +1316,8 @@ def get_auto_map(
 # Resued in main to get scope from the config
 def get_scope(
         config_scope: dict[str, Any], scope_path: Path,
-        systems_path: Path) -> Dict[str, Any]:
+        systems_path: Path,
+        global_replacements: dict[Any, Any] | None) -> Dict[str, Any]:
     '''
     Loads the scope using the config settings.
     '''
@@ -1323,7 +1333,9 @@ def get_scope(
             continue
         plugin_scope = load_plugin(plugin_path, systems_path)
         scope = scope | plugin_scope
-    local_scope  = load_jsonc(scope_path).data
+    local_scope  = scope_path.read_text(encoding='utf8')
+    local_scope = get_text_with_replacements(local_scope, global_replacements)
+    local_scope = json.loads(local_scope, cls=JSONCDecoder)
     if not isinstance(local_scope, dict):
         raise SystemTemplateException([
             "The scope file must be an object."])
@@ -1392,7 +1404,8 @@ def main_regolith():
             scope_path: Path = scope_search_root_dir / config.get(
                 'scope_path', 'system_template/scope.json')
             config_scope: dict[str, Any] = config.get('scope', {})
-            scope = get_scope(config_scope, scope_path, systems_path)
+            scope = get_scope(
+                config_scope, scope_path, systems_path, global_replacements)
             report = Report()
             auto_map = get_auto_map(
                 scope, namespace_settings, auto_map_path, global_replacements)
@@ -1415,7 +1428,8 @@ def main_regolith():
             scope_path: Path = scope_search_root_dir / config.get(
                 'scope_path', 'system_template/scope.json')
             config_scope: dict[str, Any] = config.get('scope', {})
-            scope = get_scope(config_scope, scope_path, systems_path)
+            scope = get_scope(
+                config_scope, scope_path, systems_path, global_replacements)
             auto_map = get_auto_map(
                 scope, namespace_settings, auto_map_path, global_replacements)
             for system_path, group_path in walk_system_paths(
@@ -1435,7 +1449,8 @@ def main_regolith():
             scope_path: Path = scope_search_root_dir / config.get(
                 'scope_path', 'system_template/scope.json')
             config_scope: dict[str, Any] = config.get('scope', {})
-            scope = get_scope(config_scope, scope_path, systems_path)
+            scope = get_scope(
+                config_scope, scope_path, systems_path, global_replacements)
             auto_map = get_auto_map(
                 scope, namespace_settings, auto_map_path, global_replacements)
             for system_path, group_path in walk_system_paths(
@@ -1635,7 +1650,7 @@ def main_app_run(args: argparse.Namespace, systems_path: Path):
 
     try:
         scope = get_scope(
-            config_scope, scope_path, systems_path)
+            config_scope, scope_path, systems_path, global_replacements)
         report = Report()
 
         # If auto_map_path doesn't exist it's fine, an empty auto map will be used
